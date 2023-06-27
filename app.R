@@ -1,5 +1,6 @@
 library(shiny)
-
+# up to 100mb files
+options(shiny.maxRequestSize = 100*1024^2)
 ui <- fluidPage(
   
   titlePanel("Split and rename pdfs based on QR content"),
@@ -25,11 +26,15 @@ server <- function(input, output) {
   
   split_rename <- reactive({
     req(input$file)
-    
-    split_then_qr_scan(input$file$datapath)
-  })
+      input$file$datapath |>
+      split_then_qr_scan() |>
+      combine_by_student_id() 
+      })
   
-  output$table <- renderTable(split_rename())
+  output$table <- renderTable({
+    split_rename() %>%
+      select(student_id)
+    })
   
   output$dl <- downloadHandler(
     filename = function() {
@@ -38,7 +43,7 @@ server <- function(input, output) {
     content = function(file) {
       zip(
         file,
-        split_rename()$new_path,
+        split_rename()$combined,
         flags = "-j"
       )
     }
